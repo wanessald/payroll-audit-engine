@@ -1,0 +1,31 @@
+[tool.poetry]
+name = "payroll-audit-engine"
+version = "0.1.0"
+description = "Financial audit and reconciliation system for payroll"
+authors = ["Wanessa"]
+
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.140.7"
+uvicorn = "^0.51.0"
+sqlalchemy = "^2.0.51"
+alembic = "^1.18.5"
+psycopg2-binary = "^2.9.12"
+pydantic = "^2.13.4"
+pydantic-settings = "^2.14.2"
+redis = "^8.0.1"
+python-dotenv = "^1.2.2"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^9.1.1"
+pytest-cov = "^7.1.0"
+httpx = "^0.28.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
