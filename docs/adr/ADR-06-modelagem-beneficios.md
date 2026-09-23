@@ -60,3 +60,27 @@ Consequências:
   https://www.planalto.gov.br/ccivil_03/decreto-lei/del5452.htm
   Lei 7.418/85 — vale transporte →
   https://www.planalto.gov.br/ccivil_03/leis/l7418.htm
+
+Decisões técnicas complementares:
+
+1. Unicidade de benefício ativo: índice parcial PostgreSQL
+   CREATE UNIQUE INDEX uq_worker_benefits_active_type
+   ON worker_benefits (clt_contract_id, benefit_type)
+   WHERE valid_until IS NULL
+   Garante: no máximo um registro ativo por tipo por contrato
+   Preserva: histórico de registros expirados (valid_until preenchido)
+
+2. Concorrência: UniqueViolation capturado na camada de serviço
+   e traduzido para mensagem de negócio — erro de banco não
+   vaza para o cliente da API
+
+3. Reajuste de valor (padrão SCD2):
+   UPDATE no registro atual (preenche valid_until) +
+   INSERT do novo registro (novo valor com valid_from)
+   ambos na mesma transação — atomicidade obrigatória
+
+Limitação conhecida:
+O índice parcial WHERE valid_until IS NULL é específico do PostgreSQL.
+MySQL e SQLite não suportam índices parciais com essa sintaxe.
+Portabilidade para outros bancos exige revisão desta constraint.
+Decisão aceitável dado que PostgreSQL é o banco definido (ADR-01).
