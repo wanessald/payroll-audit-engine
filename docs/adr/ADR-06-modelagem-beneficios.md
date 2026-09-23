@@ -12,6 +12,7 @@ Cada benefício é um registro com tipo, valor, percentual de
 desconto do empregado e período de vigência.
 Adicionar um novo tipo de benefício = inserir linhas,
 não alterar estrutura da tabela.
+
 Campos:
 id
 clt_contract_id → FK para clt_contracts
@@ -19,8 +20,12 @@ benefit_type → 'VALE_TRANSPORTE' | 'VALE_ALIMENTACAO'
 'VALE_REFEICAO' | 'PLANO_SAUDE'
 'AUXILIO_HOME_OFFICE' | ...
 amount → Decimal — valor mensal do benefício
-discount_rate → Decimal — percentual descontado do empregado
-(VT: 6% do salário por lei — CLT art. 4º-A)
+discount_rate → Decimal — percentual descontado do empregado: 0.0 a 1.0
+constraint: 0 <= discount_rate <= 1 (banco)
+regra específica do VT: máximo 6% do salário base (0.06)
+validada na camada de serviço — não como constraint
+genérica, pois outros benefícios podem ter
+discount_rate diferente
 valid_from → Date — início da vigência do benefício
 valid_until → Date nullable — fim da vigência (null = vigente)
 jurisdiction → String(5), default 'BR' — preparado para
@@ -46,21 +51,6 @@ Security e Privacy by Design:
 - discount_rate com constraint de intervalo — impede desconto
   superior a 100% do valor do benefício
 
-Consequências:
-
-- novos tipos de benefício não exigem migration de estrutura
-- histórico de vigência preservado — auditável por competência
-- valores e descontos rastreáveis por período
-- preparado para múltiplas jurisdições (ADR-01)
-
-* consulta de benefícios ativos exige filtro por valid_from/valid_until
-* cálculo de folha precisa agregar benefícios ativos na competência
-  Referência:
-  CLT art. 4º-A — vale transporte →
-  https://www.planalto.gov.br/ccivil_03/decreto-lei/del5452.htm
-  Lei 7.418/85 — vale transporte →
-  https://www.planalto.gov.br/ccivil_03/leis/l7418.htm
-
 Decisões técnicas complementares:
 
 1. Unicidade de benefício ativo: índice parcial PostgreSQL
@@ -79,8 +69,31 @@ Decisões técnicas complementares:
    INSERT do novo registro (novo valor com valid_from)
    ambos na mesma transação — atomicidade obrigatória
 
+Hipótese a validar:
+O índice parcial previne inserção de dois benefícios do mesmo tipo
+ativos simultaneamente para o mesmo contrato.
+Validação pendente: TASK-TESTE-01 — teste de integração que tenta
+inserir dois VTs ativos para o mesmo contrato e verifica rejeição
+com UniqueViolation.
+
+Consequências:
+
+- novos tipos de benefício não exigem migration de estrutura
+- histórico de vigência preservado — auditável por competência
+- valores e descontos rastreáveis por período
+- preparado para múltiplas jurisdições (ADR-01)
+
+* consulta de benefícios ativos exige filtro por valid_from/valid_until
+* cálculo de folha precisa agregar benefícios ativos na competência
+
 Limitação conhecida:
 O índice parcial WHERE valid_until IS NULL é específico do PostgreSQL.
 MySQL e SQLite não suportam índices parciais com essa sintaxe.
 Portabilidade para outros bancos exige revisão desta constraint.
 Decisão aceitável dado que PostgreSQL é o banco definido (ADR-01).
+
+Referências:
+CLT art. 4º-A — vale transporte →
+https://www.planalto.gov.br/ccivil_03/decreto-lei/del5452.htm
+Lei 7.418/85 — vale transporte →
+https://www.planalto.gov.br/ccivil_03/leis/l7418.htm

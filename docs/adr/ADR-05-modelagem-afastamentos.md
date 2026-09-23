@@ -1,4 +1,4 @@
-ADR-05: Modelagem de afastamentos e licenças — tabela worker_leaves
+ADR-05: Modelagem de afastamentos e licenças — worker_leaves e leave_type_rules
 
 Contexto: Empregados CLT podem ter suspensões temporárias ou permanentes
 do vínculo ativo: férias, afastamento por doença, licença
@@ -6,45 +6,79 @@ maternidade/paternidade, licença médica e aposentadoria.
 Cada tipo tem impacto diferente sobre salário e FGTS.
 Usar apenas termination_date não cobre suspensões temporárias —
 o contrato permanece ativo mas a folha normal é suspensa.
+affects_salary e affects_fgts variam por tipo de afastamento
+e são definidos por lei — não pelo usuário que cadastra
+o afastamento.
 
-Decisão: Criar tabela worker_leaves separada de clt_contracts.
+Decisão: Criar duas tabelas separadas:
+
+leave_type_rules → tabela de regras por tipo de afastamento
+define o comportamento de cada tipo:
+impacto em salário, FGTS e previsibilidade
+de data de fim. Populada via seed script
+idempotente — não via API nem migration com dados.
+Segue padrão SCD2: atualizações geram novo
+registro com valid_from — nunca UPDATE no
+registro existente.
+
+worker_leaves → registra cada evento de afastamento do empregado
+referencia leave_type_rules via leave_type
+NÃO possui affects_salary nem affects_fgts —
+esses valores são consultados em leave_type_rules
+no momento do processamento da folha
+
 termination_date permanece em clt_contracts apenas para
 encerramento definitivo do vínculo.
-worker_leaves registra todo evento de suspensão temporária
-ou permanente com: tipo, período, impacto em salário e FGTS.
-O gate de processamento da folha verifica os dois critérios: 1. termination_date IS NULL (contrato ativo) 2. nenhum worker_leave ativo com affects_salary = True
-na competência sendo processada
 
-Campos:
+O gate de processamento da folha verifica dois critérios: 1. termination_date IS NULL (contrato ativo) 2. nenhum worker_leave ativo com leave_type_rules.affects_salary
+= True na competência sendo processada
+
+Campos de leave_type_rules:
+id
+leave_type → String — identificador do tipo de afastamento
+affects_salary → Boolean — folha normal é suspensa?
+affects_fgts → Boolean — FGTS continua sendo recolhido?
+has_fixed_end_date → Boolean — afastamento sempre tem data de fim?
+valid_from → Date — início da vigência da regra
+valid_until → Date nullable — fim da vigência (null = vigente)
+jurisdiction → String(5), default 'BR' — ADR-01
+
+Campos de worker_leaves:
 id
 clt_contract_id → FK para clt_contracts
-leave_type → 'FERIAS' | 'AFASTAMENTO_INSS' | 'LICENCA_MATERNIDADE'
-'LICENCA_PATERNIDADE' | 'LICENCA_MEDICA' | 'APOSENTADORIA'
-start_date → Date, início do afastamento
-end_date → Date nullable, fim previsto (null = indeterminado)
-affects_salary → Boolean, folha normal é suspensa?
-affects_fgts → Boolean, FGTS continua sendo recolhido?
+leave_type → FK para leave_type_rules.leave_type
+start_date → Date — início do afastamento
+end_date → Date nullable — fim previsto
+null = indeterminado (ex: auxílio-doença INSS)
 created_at → DateTime(timezone=True)
+
+Regras de negócio garantidas pela aplicação:
+
+- sobreposição de afastamentos prevenida via query de verificação
+  antes do INSERT (dois afastamentos não podem ter períodos
+  sobrepostos para o mesmo contrato)
+- precedência cronológica: afastamento iniciado durante férias
+  só produz efeito após o término das férias
+
+Regras garantidas pelo banco:
+
+- end_date >= start_date quando end_date não é NULL (CHECK constraint)
 
 Security e Privacy by Design:
 
-- leave_type como enum controlado — sem tipos arbitrários
-- toda criação ou alteração de afastamento registrada na audit_trail
-  com before/after state e identificação de quem operou
+- leave_type como FK controlada — sem tipos arbitrários
 - dados de afastamento são sensíveis (saúde, maternidade) —
-  acesso restrito por role; log de acesso registrado na audit_trail
-- end_date >= start_date validado por constraint no banco
+  acesso restrito por role; log de acesso na audit_trail
+- toda criação ou alteração registrada na audit_trail com
+  before/after state e identificação de quem operou
 
-Consequências:
+Seed script:
 
-- gate de processamento cobre todos os cenários de suspensão
-- histórico completo de afastamentos por empregado
-- auditável — cada afastamento tem registro de criação e alteração
+- leave_type_rules populada via seed script idempotente
+- migration cria estrutura; seed popula dados iniciais
+- seed verifica existência antes de inserir (sem duplicidade)
+- referência: scripts/seed_leave_type_rules.py (a criar)
 
-* consulta de elegibilidade de folha exige JOIN com worker_leaves
-* complexidade de processamento aumenta para competências com
-  afastamento parcial (ex: afastamento a partir do dia 15)
-
-Referência:
-CLT — afastamentos → https://www.planalto.gov.br/ccivil_03/decreto-lei/del5452.htm
-Lei 8.213/91 — benefícios previdenciários → https://www.planalto.gov.br/ccivil_03/leis/l8213cons.htm
+Valores iniciais do seed (jurisdição BR):
+FERIAS | salary: True | fgts: True | fixed_end: True
+AFASTAMENTO_INSS | salary: False | fgts: False | fixed_end: False
