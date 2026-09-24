@@ -82,3 +82,30 @@ Seed script:
 Valores iniciais do seed (jurisdição BR):
 FERIAS | salary: True | fgts: True | fixed_end: True
 AFASTAMENTO_INSS | salary: False | fgts: False | fixed_end: False
+ACIDENTE_TRABALHO | salary: False | fgts: True | fixed_end: False
+LICENCA_MATERNIDADE | salary: False | fgts: True | fixed_end: True
+LICENCA_PATERNIDADE | salary: False | fgts: True | fixed_end: True
+LICENCA_MEDICA | salary: False | fgts: False | fixed_end: True
+APOSENTADORIA | salary: False | fgts: False | fixed_end: False
+LICENCA_GALA | salary: False | fgts: True | fixed_end: True
+LICENCA_NOJO | salary: False | fgts: True | fixed_end: True
+MANDATO_SINDICAL | salary: False | fgts: True | fixed_end: False
+
+Decisão técnica complementar:
+Unicidade de regra ativa por tipo: índice parcial PostgreSQL
+CREATE UNIQUE INDEX uq_leave_type_rules_active
+ON leave_type_rules (leave_type)
+WHERE valid_until IS NULL
+Garante: no máximo uma regra ativa por leave_type
+Atualização de regra: UPDATE (preenche valid_until) +
+INSERT (nova regra com valid_from) na mesma transação (SCD2)
+
+Hipótese a validar:
+O índice parcial previne inserção de duas regras ativas do mesmo
+leave_type simultaneamente.
+Validação pendente: TASK-TESTE-02 — teste de integração que tenta
+inserir dois registros de FERIAS com valid_until = NULL e verifica
+rejeição com UniqueViolation.
+
+Limitação conhecida:
+Índice parcial específico do PostgreSQL — mesma limitação do ADR-06.
