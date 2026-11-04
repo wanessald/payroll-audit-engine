@@ -1,5 +1,9 @@
 ADR-05: Modelagem de afastamentos e licenças — worker_leaves e leave_type_rules
 
+Status: parcialmente revisado pelo ADR-08. A chave estrangeira de
+worker_leaves para leave_type_rules.leave_type foi substituída por
+leave_type_id apontando para leave_types.
+
 Contexto: Empregados CLT podem ter suspensões temporárias ou permanentes
 do vínculo ativo: férias, afastamento por doença, licença
 maternidade/paternidade, licença médica e aposentadoria.
