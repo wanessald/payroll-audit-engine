@@ -1,6 +1,6 @@
 from datetime import date, datetime, timezone
 
-from sqlalchemy import BigInteger, CheckConstraint, Date, DateTime, ForeignKey, String
+from sqlalchemy import BigInteger, CheckConstraint, Date, DateTime, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -18,12 +18,12 @@ class WorkerLeave(Base):
         nullable=False,
     )
 
-    # qual tipo de afastamento — FK para leave_type_rules.leave_type
-    # affects_salary e affects_fgts são consultados em leave_type_rules
-    # no momento do processamento — não ficam aqui (ADR-05)
-    leave_type: Mapped[str] = mapped_column(
-        String(50),
-        ForeignKey("leave_type_rules.leave_type"),
+    # qual tipo de afastamento, do catálogo (ADR-08)
+    # a regra (affects_salary, affects_fgts) é buscada em leave_type_rules
+    # pela data da folha, não fica guardada aqui
+    leave_type_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("leave_types.id"),
         nullable=False,
     )
 
