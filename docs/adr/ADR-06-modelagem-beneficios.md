@@ -87,7 +87,7 @@ Consequências:
 * cálculo de folha precisa agregar benefícios ativos na competência
 
 Limitação conhecida:
-O índice parcial WHERE valid_until IS NULL é específico do PostgreSQL.
+O índice parcial `WHERE valid_until IS NULL` é específico do PostgreSQL.
 MySQL e SQLite não suportam índices parciais com essa sintaxe.
 Portabilidade para outros bancos exige revisão desta constraint.
 Decisão aceitável dado que PostgreSQL é o banco definido (ADR-01).
