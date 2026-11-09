@@ -71,6 +71,16 @@ Hipóteses a validar:
    faixas sobrepostas e verifica a rejeição, e depois insere a mesma faixa
    em outro ano e verifica a aceitação.
 
+Validação (05/11/2026, PostgreSQL 16, teste manual via psql no banco real):
+Hipótese 1: btree_gist disponível e instalada pela migration → CONFIRMADA
+Hipótese 2: a constraint recusa faixas sobrepostas na mesma vigência
+e aceita a mesma faixa em outra vigência → CONFIRMADA - (0, 1621.00] e (1621.00, 2902.84] na mesma vigência: aceitas
+(fronteira compartilhada não é sobreposição) - (0, 1518.00] com vigência de 2025: aceita - (1500.00, 3000.00] em 2026: recusada (ex_aliquot_rates_no_overlap)
+Limite da evidência: teste manual, não reproduzível. O teste automatizado
+em Pytest (TASK-TESTE-03) continua pendente.
+Lacunas (salário sem faixa) não foram testadas e continuam sendo
+limitação conhecida.
+
 Limitações conhecidas:
 
 - Exclusion constraint impede sobreposição, mas NÃO impede lacunas
